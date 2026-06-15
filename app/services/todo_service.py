@@ -1,86 +1,109 @@
-from fastapi import HTTPException
-from database import get_connection
+from fastapi import HTTPException, Depends
+from app.database import get_db
+from app.models.todo import Todo
 
-def raise_error():
+from sqlalchemy.orm import Session
 
-    raise HTTPException(
-        status_code=404,
-        detail="todo not found"
+def get_stored_todo(
+        db: Session, 
+        user_id: int,
+        search: str | None, 
+        limit: int, 
+        offset: int):
+    
+    query = (
+        db.query(Todo)
+        .filter(Todo.user_id == user_id)
     )
 
-def get_stored_todo(todo_id: int, user_id: int):
-    with get_connection() as conn:
-        with conn.cursor() as cursor:
-
-            cursor.execute(
-                    """
-                    SELECT todos.id, todos.title, users.username
-                    FROM todos JOIN users ON todos.user_id = users.id
-                    WHERE todos.id = %s AND todos.user_id = %s
-                    """,
-                    (todo_id, user_id)
-                )
-
-            row = cursor.fetchone()
+    if search:
+        query = query.filter(
+            Todo.title.ilike(f"%{search}%")
+        )
+    
+    todos = (
+        query
+        .limit(limit)
+        .offset(offset)
+        .all()
+    )
         
-    if row is None:
-        raise_error()
+    return todos
 
-    return {
-        "id": row[0],
-        "title": row[1],
-        "username": row[2]   
-    }
+def store_todo(db: Session, todo_title: str, user_id: int):
 
-def store_todo(todo: str, user_id: int):
-
-    if not todo:
+    if not todo_title:
         raise HTTPException(
             status_code=400,
             detail="title cannot be empty"
         )
+    
+    title = Todo(
+        title=todo_title,
+        user_id=user_id
+    )
 
-    with get_connection() as conn:
-        with conn.cursor() as cursor: 
-            cursor.execute(
-                "INSERT INTO todos (title, user_id) VALUES (%s, %s)",
-                (todo, user_id)
-            )
-
-            conn.commit()
+    db.add(title)
+    db.commit()
 
     return {
         "status": "created"
     }
 
-def update_stored_todo(todo: str, todo_id: int, user_id: int):
-    with get_connection() as conn:
-        with conn.cursor() as cursor: 
-            cursor.execute(
-                "UPDATE todos SET title = %s WHERE id = %s AND user_id = %s",
-                (todo, todo_id, user_id)
-            )
-            conn.commit()
+def update_stored_todo(
+        db: Session,
+        title: str, 
+        todo_id: int, 
+        user_id: int,
+        ):
+    
+    todo = (
+        db.query(Todo)
+        .filter(
+            Todo.id == todo_id,
+            Todo.user_id == user_id
+        )
+        .first()
+    )
+    
+    if todo is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Todo not found"
+        )
+    
+    todo.title = title
 
-            if cursor.rowcount == 0:
-                raise_error()
+    db.commit()
+    db.refresh(todo)
 
     return {
-        "status": "updated"
+        "status": "updated",
+        "data": {
+            "id": todo.id,
+            "title": todo.title
+        }
     }
 
-def delete_stored_todo(todo_id: int, user_id: int):
-    with get_connection() as conn:
-        with conn.cursor() as cursor:
-            cursor.execute(
-                "DELETE FROM todos WHERE id = %s AND user_id = %s",
-                (todo_id, user_id)
-            )
+def delete_stored_todo(db: Session, todo_id: int, user_id: int):
+    
+    todo = (
+        db.query(Todo)
+        .filter(
+            Todo.id == todo_id,
+            Todo.user_id == user_id
+        )
+        .first()
+    )
 
-            conn.commit()
+    if todo is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Todo not found"
+        )
 
-            if cursor.rowcount == 0:
-                raise_error()
+    db.delete(todo)
+    db.commit()
 
     return {
         "status": "deleted"

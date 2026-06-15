@@ -48,7 +48,7 @@ def verify_access_token(credentials: HTTPAuthorizationCredentials = Depends(bear
             algorithms=["HS256"]
         )
     
-    except jwt.InvalidSignatureError:
+    except jwt.InvalidTokenError:
         raise HTTPException(
             status_code=401,
             detail="invalid credential"

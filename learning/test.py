@@ -1,15 +1,11 @@
-class LoginTracker:
-    def __init__(self):
-        
-        self.counts = {}
-    def failed_login(self, name):
-        self.counts[name] = self.counts.get(name, 0) + 1
-        return self.counts[name]
+def digitize(n):
+    result = []
 
-tracker = LoginTracker()
+    for digit in str(n):
+        result.insert(0, int(digit))
 
-tracker.failed_login("alice")
-tracker.failed_login("alice")
-tracker.failed_login("bob")
+    return result
 
-print(tracker.failed_login("joe"), tracker.failed_login("joe"))
+n = 35789
+
+print(digitize(n))

@@ -1,39 +1,32 @@
-from models.user import User
-from database import SessionLocal
-from fastapi import HTTPException
+from app.models.user import User
+from app.database import SessionLocal
 
-def create_user(username: str, password: str):
-    db = SessionLocal()
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+
+def create_user(db: Session, username: str, password: str,):
+
+    user = User(
+        username=username,
+        password=password
+    )
+    db.add(user)
     
     try:
-        user = User(
-            username=username,
-            password=password
-        )
-
-        db.add(user)
         db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise
     
-    finally:
-        db.close()
+def get_user(db: Session, username: str):
 
-def get_user(username: str):
-    db = SessionLocal()
+    user = (
+        db.query(User)
+        .filter(User.username == username)
+        .first()
+    )
     
-    try:
-        user = (
-            db.query(User)
-            .filter(User.username == username)
-            .first()
-        )
-        if user is None:
-            raise HTTPException(
-                status_code=404,
-                detail="User not found"
-            )
-        return user
+    return user
 
-    finally:    
-        db.close()
 
     

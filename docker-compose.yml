@@ -1,0 +1,27 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_NAME: todo_app
+      DB_USER: app_user
+      DB_PASSWORD: supersecret
+      REDIS_HOST: redis
+  
+  db:
+    image: postgres:18
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: todo_app
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: supersecret
+
+  redis:
+    image: redis:8
+    ports:
+      - "6379:6379"
